@@ -1,0 +1,146 @@
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Runaway</title>
+    <style>
+      #runaway {
+        position: absolute;
+        cursor: pointer;
+        padding: 5px;
+        font: serif;
+        border-radius: 3px;
+        top: 50px;
+        left: 50px;
+        color: white;
+        background-color: red;
+      }
+      #runaway:hover {
+        opacity: .7;
+      }
+    </style>
+  </head>
+  <div id='runaway'>
+    Click Me
+  </div>
+  <div id='score'>
+    Times clicked: <span id='clicked'>0</span>
+    <br>
+    Minimum time to click: <span id='ttc'>Infinity</span>
+  </div>
+  <script>
+    timesClicked = 0;
+    minTimeToClick = Infinity;
+    mousePos = {
+      x: -Infinity,
+      y: -Infinity
+    };
+    boxPos = {
+      x: 0,
+      y: 0
+    };
+    boxSpeed = {
+      x: 0.1,
+      y: 0.2
+    };
+    boxSize = function() {
+      return {
+        w: document.getElementById('runaway').offsetWidth,
+        h: document.getElementById('runaway').offsetHeight
+      };
+    };
+    moveBox = function(timeDelta) {
+      boxPos.x += boxSpeed.x * timeDelta;
+      boxPos.y += boxSpeed.y * timeDelta;
+      // Make sure box stays within window
+      bs = boxSize();
+      boxPos.x = Math.max(boxPos.x, 0);
+      boxPos.x = Math.min(boxPos.x, window.innerWidth - bs.w);
+      boxPos.y = Math.max(boxPos.y, 0);
+      boxPos.y = Math.min(boxPos.y, window.innerHeight - bs.h);
+      document.getElementById('runaway').style.left = boxPos.x;
+      document.getElementById('runaway').style.top = boxPos.y;
+    };
+
+    distToBox = function(x, y) {
+      size = boxSize();
+      xdist = 0;
+      if (x < boxPos.x) {
+        xdist = boxPos.x - x;
+      } else if (x > boxPos.x + size.w) {
+        xdist = x - size.w - boxPos.x;
+      }
+      ydist = 0;
+      if (y < boxPos.y) {
+        ydist = boxPos.y - y;
+      } else if (y > boxPos.y + size.h) {
+        ydist = y - size.w - boxPos.y;
+      }
+      return {
+        x: xdist,
+        y: ydist
+      }
+    };
+
+    document.onmousemove = function(e) {
+      mousePos = {
+        x: e.clientX,
+        y: e.clientY
+      };
+    };
+
+    escapeMouse = function() {
+      size = boxSize()
+      if (boxPos.x == 0 || boxPos.x == window.innerWidth - size.w) {
+        boxSpeed.x = 0;
+      }
+      if (boxPos.y == 0 || boxPos.y == window.innerHeight - size.h) {
+        boxSpeed.y = 0;
+      }
+      dists = distToBox(mousePos.x, mousePos.y)
+      dist = Math.sqrt(Math.pow(dists.x, 2) + Math.pow(dists.y, 2));
+      if (dist < 200) {
+        xcomp = 0;
+        ycomp = 1;
+        if (dists.y != 0) {
+          slope = Math.abs(dists.x / dists.y);
+          ycomp = slope / (slope + 1);
+          xcomp = 1 - slope / (slope + 1);
+        }
+        speed = .1;
+        mouseToRight = mousePos.x > boxPos.x + size.w / 2;
+        if ((mouseToRight && dists.x < boxPos.x - size.w) ||
+            (!mouseToRight && dists.x >= window.innerWidth - boxPos.x - 2 * size.w)) {
+          boxSpeed.x -= speed * xcomp;
+        } else {
+          boxSpeed.x += speed * xcomp;
+        }
+        mouseBelow = mousePos.y > boxPos.y + size.h / 2
+        if ((mouseBelow && dists.y < boxPos.y - size.h) ||
+            (!mouseBelow && dists.y >= window.innerHeight - boxPos.y - 2 * size.h)) {
+          boxSpeed.y -= speed * ycomp;
+        } else {
+          boxSpeed.y += speed * ycomp;
+        }
+      }
+    };
+
+    document.getElementById('runaway').addEventListener('mousedown', function() {
+      timesClicked++;
+      minTimeToClick = Math.min(minTimeToClick, lastTime - lastClickTime);
+      lastClickTime = lastTime;
+      document.getElementById('clicked').innerHTML = timesClicked;
+      document.getElementById('ttc').innerHTML = (minTimeToClick / 1000).toFixed(2) + 's';
+    });
+
+    lastClickTime = 0;
+    lastTime = 0;
+    runaway = function(timestamp) {
+      timeDelta = timestamp - lastTime;
+      lastTime = timestamp;
+      escapeMouse();
+      moveBox(timeDelta);
+      requestAnimationFrame(runaway);
+    };
+    window.requestAnimationFrame(runaway);
+  </script>
+</html>
