@@ -1,0 +1,109 @@
+<html>
+  <head>
+    <meta charset='utf-8'>
+    <title>Circle Pack</title>
+    <style>
+      .circle {
+        position: absolute;
+        z-index: -1;
+      }
+    </style>
+  </head>
+  <body id="body">
+    <div>
+      Click the screen to start packing<br>
+      Number of circles: <span id='clicks'>0</span><br>
+      Percent area covered: <span id='area'>0</span><br>
+      Percent area per circle: <span id='apc'>0</span>
+    </div>
+    <script>
+      circles = [];
+      randomColor = function() {
+        letters = '0123456789ABCDEF';
+        color = '#';
+        for (i = 0; i < 6; i++) {
+          color += letters[Math.floor(Math.random() * 16)];
+        }
+        return color;
+      };
+      document.addEventListener('click', function(e) {
+        x = e.clientX;
+        y = e.clientY;
+        for (k = 0; k < circles.length; k++) {
+          circle = circles[k];
+          dist = Math.sqrt(Math.pow(x - circle.x, 2) + Math.pow(y - circle.y, 2));
+          if (dist <= circle.r) {
+            return;
+          }
+        }
+        newDiv = document.createElement('div');
+        newDiv.id = circles.length;
+        newDiv.className = 'circle';
+        newDiv.style['background-color'] = randomColor();
+        document.getElementsByTagName('body')[0].appendChild(newDiv);
+        newCircle = {
+          x: e.clientX,
+          y: e.clientY,
+          r: 0,
+          t: lastTime
+        };
+        circles.push(newCircle);
+      });
+      checkTouchingEdgeOrOtherCircle = function(circle, i) {
+        if (circle.x - circle.r <= 0 || circle.x + circle.r >= window.innerWidth ||
+            circle.y - circle.r <= 0 || circle.y + circle.r >= window.innerHeight) {
+          option0 = circle.x;
+          option1 = window.innerWidth - circle.x;
+          option2 = circle.y;
+          option3 = window.innerHeight - circle.y;
+          circle.r = Math.min(Math.min(Math.min(option0, option1), option2), option3);
+          deadCircles[i] = true;
+          return;
+        }
+        for (j = 0; j < circles.length; j++) {
+          if (i == j) {
+            continue;
+          }
+          other = circles[j];
+          dist = Math.sqrt(Math.pow(circle.x - other.x, 2) + Math.pow(circle.y - other.y, 2));
+          if (circle.r + other.r >= dist) {
+            circle.r = dist - other.r;
+            deadCircles[i] = true;
+            return;
+          }
+        }
+      }
+      lastTime = 0;
+      deadCircles = {};
+      growCircles = function(timestamp) {
+        lastTime = timestamp;
+        for (i = 0; i < circles.length; i++) {
+          if (deadCircles[i]) {
+            continue;
+          }
+          circle = circles[i];
+          circle.r += .1 * (timestamp - circle.t);
+          circle.t = timestamp;
+          circleDiv = document.getElementById(i)
+          circleDiv.style['width'] = circle.r * 2;
+          circleDiv.style['height'] = circle.r * 2;
+          circleDiv.style['left'] = circle.x - circle.r;
+          circleDiv.style['top'] = circle.y - circle.r;
+          circleDiv.style['border-radius'] = circle.r + 'px';
+          checkTouchingEdgeOrOtherCircle(circle, i);
+        }
+        area = 0;
+        for (i = 0; i < circles.length; i++) {
+          area += Math.PI * circles[i].r * circles[i].r;
+        }
+        totalArea = window.innerWidth * window.innerHeight;
+        percent = (100 * area / totalArea).toFixed(2);
+        document.getElementById('clicks').innerHTML = circles.length;
+        document.getElementById('area').innerHTML = percent + '%';
+        document.getElementById('apc').innerHTML = (percent / circles.length).toFixed(2) + '%';
+        requestAnimationFrame(growCircles);
+      };
+      requestAnimationFrame(growCircles);
+    </script>
+  </body>
+</html>
