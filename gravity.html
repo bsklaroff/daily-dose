@@ -1,0 +1,101 @@
+<html>
+  <head>
+    <meta charset='utf-8'>
+    <title>Gravity</title>
+    <style>
+      .planet {
+        position: absolute;
+        z-index: -1;
+      }
+    </style>
+  </head>
+  <body id="body">
+    <div>
+      Click and drag to create a planet
+    </div>
+    <script>
+      planets = [];
+      newPlanet = null;
+      newDiv = null;
+      randomColor = function() {
+        letters = '0123456789ABCDEF';
+        color = '#';
+        for (i = 0; i < 6; i++) {
+          color += letters[Math.floor(Math.random() * 16)];
+        }
+        return color;
+      };
+      document.addEventListener('mousedown', function(e) {
+        startX = e.clientX;
+        startY = e.clientY;
+        newPlanet = {
+          x: startX,
+          y: startY,
+          vx: 0,
+          vy: 0,
+          r: 0,
+          m: 0
+        };
+        newDiv = document.createElement('div');
+        newDiv.className = 'planet';
+        newDiv.style['background-color'] = randomColor();
+        document.getElementsByTagName('body')[0].appendChild(newDiv);
+      });
+      document.addEventListener('mousemove', function(e) {
+        if (newPlanet) {
+          r = Math.sqrt(Math.pow(e.clientX - startX, 2) + Math.pow(e.clientY - startY, 2));
+          m = Math.PI * r * r;
+          newPlanet.r = r
+          newPlanet.m = m
+          newDiv.style['width'] = 2 * r;
+          newDiv.style['height'] = 2 * r;
+          newDiv.style['left'] = newPlanet.x - r;
+          newDiv.style['top'] = newPlanet.y - r;
+          newDiv.style['border-radius'] = r + 'px';
+        }
+      });
+      document.addEventListener('mouseup', function(e) {
+        if (newPlanet && newPlanet.r > 0) {
+          newDiv.id = planets.length;
+          planets.push(newPlanet);
+        }
+        newPlanet = null;
+        newDiv = null;
+      });
+      lastTime = 0;
+      movePlanets = function(timestamp) {
+        timeDelta = timestamp - lastTime;
+        for (i = 0; i < planets.length; i++) {
+          planet = planets[i];
+          for (j = i + 1; j < planets.length; j++) {
+            other = planets[j];
+            xdiff = planet.x - other.x;
+            ydiff = planet.y - other.y;
+            distSquared = Math.pow(xdiff, 2) + Math.pow(ydiff, 2);
+            maxF = Math.min(planet.m, other.m) / 100
+            f = Math.max(Math.min(planet.m * other.m / distSquared, maxF), -maxF);
+            theta = Math.atan(ydiff / xdiff);
+            fy = f * Math.sin(theta)
+            fx = f * Math.cos(theta)
+            if (planet.x > other.x) {
+              fx = -fx;
+              fy = -fy;
+            }
+            planet.vx += fx / planet.m;
+            planet.vy += fy / planet.m;
+            other.vx -= fx / other.m;
+            other.vy -= fy / other.m;
+          }
+          planet.x += timeDelta * planet.vx
+          planet.y += timeDelta * planet.vy
+          planetDiv = document.getElementById(i)
+          planetDiv.style['left'] = planet.x - planet.r;
+          planetDiv.style['top'] = planet.y - planet.r;
+        }
+        lastTime = timestamp;
+        requestAnimationFrame(movePlanets);
+      };
+      requestAnimationFrame(movePlanets);
+    </script>
+  </body>
+</html>
