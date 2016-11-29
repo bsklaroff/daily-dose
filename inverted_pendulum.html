@@ -1,0 +1,155 @@
+<html>
+  <head>
+    <meta charset='utf-8'>
+    <title>Inverted Pendulum</title>
+    <style>
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        cursor: none;
+      }
+      #msg {
+        padding: 5px;
+      }
+      #car {
+        position: absolute;
+        z-index: -1;
+      }
+      #ball {
+        position: absolute;
+        z-index: -1;
+      }
+      #rod {
+        position: absolute;
+        z-index: -2;
+        transform-origin: 50% 0 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="msg">
+      Move your mouse left and right to balance the pendulum upside-down<br>
+      Current Balance Time: <span id="current"></span><br>
+      Best Balance Time: <span id="best"></span>
+    </div>
+    <div id="car">
+    </div>
+    <div id="ball">
+    </div>
+    <div id="rod">
+    </div>
+    <script>
+      randomColor = function() {
+        letters = '0123456789ABCDEF';
+        color = '#';
+        for (i = 0; i < 6; i++) {
+          color += letters[Math.floor(Math.random() * 16)];
+        }
+        return color;
+      };
+
+      CAR_W = 32;
+      CAR_H = 20;
+      MAX_CAR_VX = 3;
+      BALL_R = 10;
+      G = 1e-3;
+      FRICTION = 4e-2;
+      ROD_W = 2;
+      ROD_LEN = 200;
+
+      targetX = window.innerWidth / 2;
+      carX = window.innerWidth / 2;
+      carY = window.innerHeight / 2;
+      ballX = carX;
+      ballY = carY + ROD_LEN;
+      theta = 0;
+      omega = 0;
+
+      carDiv = document.getElementById('car')
+      ballDiv = document.getElementById('ball')
+      rodDiv = document.getElementById('rod')
+      carDiv.style.width = CAR_W;
+      carDiv.style.height = CAR_H;
+      carDiv.style['background-color'] = randomColor();
+      ballDiv.style.width = 2 * BALL_R;
+      ballDiv.style.height = 2 * BALL_R;
+      ballDiv.style['border-radius'] = BALL_R + 'px';
+      ballDiv.style['background-color'] = randomColor();
+      rodDiv.style.width = ROD_W;
+      rodDiv.style.height = ROD_LEN;
+      rodDiv.style['background-color'] = randomColor();
+
+      document.addEventListener('mousemove', function(e) {
+        targetX = e.clientX;
+      });
+
+      startBalanceTime = null;
+      maxBalanceTime = 0;
+      lastTime = 0;
+      movePendulum = function(timestamp) {
+        timeDelta = timestamp - lastTime;
+        lastTime = timestamp;
+
+        // Move car towards mouse
+        dx = targetX - carX;
+        dx = Math.min(Math.max(dx, -timeDelta * MAX_CAR_VX), timeDelta * MAX_CAR_VX);
+        carX += dx;
+
+        // Calculate angular acceleration based on movement of car, gravity, and friction
+        xdiff = carX - ballX;
+        targetTheta = Math.asin(Math.max(Math.min(xdiff / ROD_LEN, 1), -1));
+        if (theta > Math.PI / 2) {
+          targetTheta = Math.PI - targetTheta;
+        } else if (theta < -Math.PI / 2) {
+          targetTheta = -Math.PI - targetTheta;
+        }
+        dTheta = targetTheta - theta;
+        aCar = dTheta / (timeDelta * timeDelta);
+        aGravity = -G * Math.sin(theta);
+        aFriction = -FRICTION * omega;
+        alpha = aCar + aGravity + aFriction;
+
+        // Calculate new angular velocity and position based on angular acceleration
+        omega += alpha;
+        theta += omega * timeDelta;
+        if (theta > Math.PI) {
+          theta -= 2 * Math.PI;
+        } else if (theta < -Math.PI) {
+          theta += 2 * Math.PI;
+        }
+
+        ballX = carX - ROD_LEN * Math.sin(theta);
+        ballY = carY + ROD_LEN * Math.cos(theta);
+
+        carDiv.style.left = carX - CAR_W / 2;
+        carDiv.style.top = carY - CAR_H / 2;
+        ballDiv.style.left = ballX - BALL_R;
+        ballDiv.style.top = ballY - BALL_R;
+        rodDiv.style.left = carX - ROD_W;
+        rodDiv.style.top = carY;
+        rodDiv.style.transform = 'rotate(' + theta + 'rad)';
+
+        // Display score
+        curBalanceTime = 0;
+        if (theta > Math.PI / 2 || theta < -Math.PI / 2) {
+          if (startBalanceTime) {
+            curBalanceTime = lastTime - startBalanceTime;
+          } else {
+            startBalanceTime = lastTime;
+          }
+        } else {
+          if (startBalanceTime) {
+            maxBalanceTime = Math.max(maxBalanceTime, lastTime - startBalanceTime);
+          }
+          startBalanceTime = null;
+        }
+        document.getElementById('current').innerHTML = (curBalanceTime / 1000).toFixed(2) + 's';
+        document.getElementById('best').innerHTML = (maxBalanceTime / 1000).toFixed(2) + 's';
+
+        requestAnimationFrame(movePendulum);
+      };
+      requestAnimationFrame(movePendulum);
+    </script>
+  </body>
+</html>
