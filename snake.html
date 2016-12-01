@@ -1,0 +1,131 @@
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Snake</title>
+    <style>
+      canvas {
+        border: 1px solid black;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas></canvas>
+    <div>
+      Controls: Arrow Keys<br>
+      Score: <span id="score"></span><br>
+      Best Score: <span id="best"></span>
+    </div>
+    <script>
+      STEP_MILLIS = 80;
+      BLOCK_LEN = 20;
+      WIDTH = 20;
+      HEIGHT = 20;
+
+      c = document.getElementsByTagName('canvas')[0];
+      c.width = BLOCK_LEN * WIDTH;
+      c.height = BLOCK_LEN * HEIGHT;
+      ctx = c.getContext('2d');
+
+      randomColor = function() {
+        letters = '0123456789ABCDEF';
+        color = '#';
+        for (i = 0; i < 6; i++) {
+          color += letters[Math.floor(Math.random() * 16)];
+        }
+        return color;
+      };
+      randomSquare = function() {
+        x = Math.floor(Math.random() * c.width / BLOCK_LEN);
+        y = Math.floor(Math.random() * c.height / BLOCK_LEN);
+        return {x: x, y: y};
+      };
+      squareEq = function(s0, s1) {
+        return s0.x == s1.x && s0.y == s1.y
+      };
+      squareInList = function(square, list) {
+        for (var i = 0; i < list.length; i++) {
+          if (squareEq(square, list[i])) {
+            return true;
+          }
+        }
+        return false;
+      };
+      resetGame = function() {
+        score = 0;
+        snake = [{x: 7, y: 5}, {x: 6, y: 5}, {x: 5, y: 5}];
+        dir = {x: 1, y: 0};
+        prevDir = dir;
+        target = randomSquare();
+        while (squareInList(target, snake)) {
+          target = randomSquare();
+        };
+        snakeColor = randomColor();
+        targetColor = randomColor();
+      };
+
+      bestScore = 0;
+      resetGame();
+
+      document.addEventListener('keydown', function(e) {
+        if (e.keyCode == 37) {
+          dir = {x: -1, y: 0};
+        } else if (e.keyCode == 38) {
+          dir = {x: 0, y: -1};
+        } else if (e.keyCode == 39) {
+          dir = {x: 1, y: 0};
+        } else if (e.keyCode == 40) {
+          dir = {x: 0, y: 1};
+        }
+      });
+
+      lastTimeStep = 0;
+      moveSnake = function(timestamp) {
+        timeStep = Math.floor(timestamp / STEP_MILLIS);
+        if (timeStep == lastTimeStep) {
+          requestAnimationFrame(moveSnake);
+          return;
+        }
+        lastTimeStep = timeStep;
+
+        // Make sure dir is not exactly opposite of prevDir
+        if (dir.x == -prevDir.x || dir.y == -prevDir.y) {
+          dir = prevDir;
+        }
+        prevDir = dir;
+        oldTail = snake.pop();
+        newHead = {x: snake[0].x + dir.x, y: snake[0].y + dir.y};
+        if (newHead.x < 0 || newHead.x >= WIDTH || newHead.y < 0 || newHead.y >= HEIGHT || squareInList(newHead, snake)) {
+          resetGame();
+          requestAnimationFrame(moveSnake);
+          return;
+        }
+
+        snake.unshift(newHead);
+        if (squareEq(newHead, target)) {
+          score++;
+          bestScore = Math.max(bestScore, score);
+          target = randomSquare();
+          while (squareInList(target, snake)) {
+            target = randomSquare();
+          };
+          targetColor = randomColor();
+          snake.push(oldTail);
+        }
+
+        ctx.clearRect(0, 0, c.width, c.height);
+        ctx.fillStyle = snakeColor;
+        w = BLOCK_LEN - 2;
+        for (var i = 0; i < snake.length; i++) {
+          ctx.fillRect(snake[i].x * BLOCK_LEN + 1, snake[i].y * BLOCK_LEN + 1, w, w);
+        }
+        ctx.fillStyle = targetColor;
+        ctx.fillRect(target.x * BLOCK_LEN + 1, target.y * BLOCK_LEN + 1, w, w);
+
+        document.getElementById('score').innerHTML = score;
+        document.getElementById('best').innerHTML = bestScore;
+
+        requestAnimationFrame(moveSnake);
+      };
+      requestAnimationFrame(moveSnake);
+    </script>
+</html>
