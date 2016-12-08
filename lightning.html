@@ -1,0 +1,116 @@
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Lightning</title>
+    <style>
+      canvas {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: black;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas></canvas>
+    <script>
+      THETA_RANGE = Math.PI / 3;
+      DOWN_PROB = 0.9;
+      BOLT_STEP = 5;
+      BRANCH_PROB = 0.002;
+      BOLT_W = 5;
+
+      c = document.getElementsByTagName('canvas')[0];
+      ctx = c.getContext('2d');
+      alpha = 1;
+      bolts = [];
+      branches = [];
+
+      generateBolt = function(startPt, baseTheta, numSteps, branch) {
+        if (branch > 3 || numSteps <= 0) {
+          return;
+        }
+        var lastBranch = -1;
+        var bolt = [startPt];
+        var theta = baseTheta;
+        var i = 0;
+        while (i < numSteps) {
+          var prevPt = bolt[bolt.length - 1];
+          if (prevPt.y >= c.height) {
+            break;
+          }
+          var dtheta = Math.random() * THETA_RANGE;
+          if (theta > 0 && Math.random() < DOWN_PROB) {
+            dtheta = -dtheta;
+          } else if (theta < 0 && Math.random() > DOWN_PROB) {
+            dtheta = -dtheta;
+          }
+          theta += dtheta;
+          var dx = BOLT_STEP * Math.sin(baseTheta + theta);
+          var dy = BOLT_STEP * Math.cos(baseTheta + theta);
+          bolt.push({x: prevPt.x + dx, y: prevPt.y + dy});
+          if (Math.random() < BRANCH_PROB * (i - lastBranch)) {
+            lastBranch = i;
+            generateBolt({x: prevPt.x, y: prevPt.y}, theta, Math.floor(Math.random() * (numSteps - i)), branch + 1);
+          }
+          if (i < numSteps - 1 || branch != 1) {
+            i++;
+          }
+        }
+        drawBolt(bolt, branch, true);
+      }
+
+      drawBolt = function(bolt, branch, record) {
+        if (record) {
+          bolts.push(bolt);
+          branches.push(branch);
+        }
+        ctx.lineWidth = BOLT_W / branch;
+        if (branch == 1) {
+          ctx.strokeStyle = 'rgba(255, 255, 255, ' + alpha + ')';
+        } else if (branch == 2) {
+          ctx.strokeStyle = 'rgba(155, 155, 155, ' + alpha + ')';
+        } else if (branch == 3) {
+          ctx.strokeStyle = 'rgba(55, 55, 55, ' + alpha + ')';
+        }
+        ctx.beginPath();
+        ctx.moveTo(bolt[0].x, bolt[0].y);
+        for (var i = 1; i < bolt.length; i++) {
+          ctx.lineTo(bolt[i].x, bolt[i].y);
+        }
+        ctx.stroke();
+      }
+
+      redrawBolts = function() {
+        for (var i = 0; i < bolts.length; i++) {
+          drawBolt(bolts[i], branches[i]);
+        }
+      }
+
+      lastBoltTime = 0;
+      drawLightning = function(timestamp) {
+        c.width = window.innerWidth;
+        c.height = window.innerHeight;
+        ctx.clearRect(0, 0, c.width, c.height);
+
+        timeDelta = timestamp - lastBoltTime;
+        if (timeDelta > 300 && Math.random() < timeDelta / 50000) {
+          alpha = 1;
+          bolts = [];
+          branches = [];
+          x = Math.random() * 2 * window.innerWidth / 3 + window.innerWidth / 6;
+          generateBolt({x: x, y: 0}, 0, window.innerHeight / BOLT_STEP * 1.2, 1);
+          lastBoltTime = timestamp;
+        } else if (timeDelta < 300) {
+          alpha = (300 - timeDelta) / 300;
+          redrawBolts();
+        }
+
+        requestAnimationFrame(drawLightning);
+      };
+      requestAnimationFrame(drawLightning);
+    </script>
+  </body>
+</html>
