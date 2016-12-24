@@ -1,0 +1,184 @@
+<html>
+  <head>
+    <meta charset='utf-8'>
+    <title>Ear Training</title>
+    <style>
+      #sequence {
+        font-size: 36px;
+      }
+      span.red {
+        color: red;
+      }
+    </style>
+  </head>
+  <body>
+    <div>Total Correct: <span id="total_correct">0</span></div>
+    <div>Average Guesses: <span id="avg_guesses">0</span></div>
+    <div>Current Streak: <span id="streak">0</div></div>
+    <div>Best Streak: <span id="best_streak">0</div></div>
+    <div>Sequence Length: <input id="seq_len" value="1"></input></div>
+    <div id="sequence"></div>
+    <script>
+      bestStreak = 0;
+      streak = 0;
+      totalCorrect = 0;
+      numGuesses = 0;
+      totalGuesses = 0;
+      sequence = [];
+      userSequence = [];
+      playingSequence = false;
+      seqLen = 1;
+
+      genTestSequence = function() {
+        sequence = [];
+        str = '';
+        for (var i = 0; i < seqLen; i++) {
+          randNum = Math.floor(Math.random() * 29);
+          octave = Math.floor(randNum / 12) + 3;
+          notes = ['C', 'D-', 'D', 'E-', 'E', 'F', 'G-', 'G', 'A-', 'A', 'B-', 'B'];
+          note = notes[randNum % 12] + octave;
+          sequence.push(note);
+          str += '<span id="note' + i + '">_</span> ';
+        }
+        setTimeout(function() {
+          document.getElementById('sequence').innerHTML = str;
+        }, 1000 + seqLen * 500);
+        playSequence();
+      };
+
+      playSequence = function() {
+        playingSequence = true;
+        for (var i = 0; i < sequence.length; i++) {
+          note = sequence[i];
+          setTimeout(function(note) {
+            return function() {
+              sound = new Audio('sounds/' + note + '.wav');
+              sound.play();
+            };
+          }(note), 1000 + i * 500);
+        }
+        setTimeout(function() {
+          playingSequence = false;
+        }, 1000 + sequence.length * 500);
+      };
+
+      checkSequence = function() {
+        numGuesses++;
+        correct = true;
+        for (var i = 0; i < sequence.length; i++) {
+          if (sequence[i] != userSequence[i]) {
+            correct = false;
+            break;
+          }
+        }
+        userSequence = [];
+        if (correct) {
+          totalCorrect++;
+          totalGuesses += numGuesses;
+          if (numGuesses == 1) {
+            streak++;
+          } else {
+            streak = 0;
+          }
+          bestStreak = Math.max(bestStreak, streak);
+          numGuesses = 0;
+          document.getElementById('total_correct').innerHTML = totalCorrect;
+          document.getElementById('avg_guesses').innerHTML = (totalGuesses / totalCorrect).toFixed(2);
+          document.getElementById('streak').innerHTML = streak;
+          document.getElementById('best_streak').innerHTML = bestStreak;
+          seqLenStr = document.getElementById('seq_len').value;
+          if (!isNaN(parseInt(seqLenStr))) {
+            seqLen = parseInt(seqLenStr);
+          }
+          genTestSequence();
+        } else {
+          playSequence();
+        }
+      };
+
+      document.addEventListener('keydown', function(e) {
+        e.stopPropagation();
+        if (playingSequence) {
+          return;
+        }
+        note = null;
+        if (e.key == 'z') {
+          note = 'C3';
+        } else if (e.key == 's') {
+          note = 'D-3';
+        } else if (e.key == 'x') {
+          note = 'D3';
+        } else if (e.key == 'd') {
+          note = 'E-3';
+        } else if (e.key == 'c') {
+          note = 'E3';
+        } else if (e.key == 'v') {
+          note = 'F3';
+        } else if (e.key == 'g') {
+          note = 'G-3';
+        } else if (e.key == 'b') {
+          note = 'G3';
+        } else if (e.key == 'h') {
+          note = 'A-3';
+        } else if (e.key == 'n') {
+          note = 'A3';
+        } else if (e.key == 'j') {
+          note = 'B-3';
+        } else if (e.key == 'm') {
+          note = 'B3';
+        } else if (e.key == 'q') {
+          note = 'C4';
+        } else if (e.key == '2') {
+          note = 'D-4';
+        } else if (e.key == 'w') {
+          note = 'D4';
+        } else if (e.key == '3') {
+          note = 'E-4';
+        } else if (e.key == 'e') {
+          note = 'E4';
+        } else if (e.key == 'r') {
+          note = 'F4';
+        } else if (e.key == '5') {
+          note = 'G-4';
+        } else if (e.key == 't') {
+          note = 'G4';
+        } else if (e.key == '6') {
+          note = 'A-4';
+        } else if (e.key == 'y') {
+          note = 'A4';
+        } else if (e.key == '7') {
+          note = 'B-4';
+        } else if (e.key == 'u') {
+          note = 'B4';
+        } else if (e.key == 'i') {
+          note = 'C5';
+        } else if (e.key == '9') {
+          note = 'D-5';
+        } else if (e.key == 'o') {
+          note = 'D5';
+        } else if (e.key == '0') {
+          note = 'E-5';
+        } else if (e.key == 'p') {
+          note = 'E5';
+        }
+        if (note) {
+          sound = new Audio('sounds/' + note + '.wav');
+          sound.play();
+          var i = userSequence.length;
+          noteSpan = document.getElementById('note' + i);
+          noteSpan.innerHTML = note;
+          if (note == sequence[i]) {
+            noteSpan.className = '';
+          } else {
+            noteSpan.className = 'red';
+          }
+          userSequence.push(note);
+          if (userSequence.length >= sequence.length) {
+            checkSequence();
+          }
+        }
+      });
+      genTestSequence();
+    </script>
+  </body>
+</html>
