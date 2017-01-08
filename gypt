@@ -1,0 +1,115 @@
+#!/bin/bash
+
+# Use this to automatically encrypt the current git repo using AES 256 and save on a remote repo
+# Warning: We're gonna store your gpg password in plaintext on your machine for convenience
+
+set -e
+set -o pipefail
+
+if (( $# != 1 )) || [[ $1 != 'push' && $1 != 'pull' ]]; then
+  echo 'Usage: gypt <action>'
+  echo '<action> may be one of: push, pull'
+fi
+
+gitroot=$(git rev-parse --show-cdup)
+if [[ ! -z "$gitroot" ]]; then
+  cd $gitroot
+fi
+
+mkdir -p .git/.gypt
+if [[ ! -f .git/.gypt/remote ]]; then
+  read -p "Enter your remote repository url: " remote
+  echo $remote > .git/.gypt/remote
+fi
+if [[ ! -f .git/.gypt/.pass ]]; then
+  read -p "Enter your encryption key password: " pass
+  echo $pass > .git/.gypt/.pass
+fi
+
+# Populate $remote and $reponame
+remote=$(cat .git/.gypt/remote)
+oldIFS="$IFS"
+IFS='/'
+read -r -a remotesplit <<< "$remote"
+last=${remotesplit[-1]}
+IFS='.'
+read -r -a lastsplit <<< "$last"
+reponame=${lastsplit[0]}
+IFS="$oldIFS"
+
+files=$(git ls-tree HEAD --name-only)
+
+if [[ $1 == 'push' ]]; then
+  echo 'Gzipping HEAD...'
+  tar -zcf gypt-$reponame.tar.gz .git $files
+  mv gypt-$reponame.tar.gz .git/.gypt/gypt-$reponame.tar.gz
+
+  echo 'Encrypting repo tarball...'
+  cat .git/.gypt/.pass | gpg --batch --passphrase-fd 0 --symmetric --cipher-algo AES256 -o .git/.gypt/gypt-$reponame .git/.gypt/gypt-$reponame.tar.gz
+  rm .git/.gypt/gypt-$reponame.tar.gz
+
+  echo "Moving to 'gypt' branch..."
+  git checkout --orphan gypt
+
+  echo "Adding remote $remote..."
+  git remote add gypt-origin $remote || :
+
+  echo 'Removing unencrypted files from this branch...'
+  git rm --cached -r .
+  rm -rf $files
+
+  echo 'Committing encrypted repo tarball...'
+  mv .git/.gypt/gypt-$reponame gypt-$reponame
+  git add gypt-$reponame
+  git commit -am "gypt-$reponame"
+
+  echo 'Pushing encrypted tarball to remote...'
+  git push -uf gypt-origin gypt
+
+  echo 'Returning to master...'
+  git checkout master
+
+  echo "Cleaning up..."
+  git branch -d gypt
+  git remote remove gypt-origin
+fi
+
+if [[ $1 == 'pull' ]]; then
+  echo "Moving to 'gypt' branch..."
+  git checkout --orphan gypt
+
+  echo "Adding remote $remote..."
+  git remote add gypt-origin $remote || :
+
+  echo 'Removing unencrypted files from this branch...'
+  git rm --cached -r .
+  rm -rf $files
+
+  echo 'Pulling repo tarball from remote...'
+  git pull gypt-origin gypt
+
+  echo "Unzipping repo tarball into .git/.gypt/gypt-$reponame"
+  cp gypt-$reponame .git/.gypt/gypt-$reponame
+  cat .git/.gypt/.pass | gpg --batch --passphrase-fd 0 -o .git/.gypt/gypt-$reponame.tar.gz -d .git/.gypt/gypt-$reponame
+  rm .git/.gypt/gypt-$reponame
+  mkdir -p .git/.gypt/gypt-$reponame
+  tar -xf .git/.gypt/gypt-$reponame.tar.gz -C .git/.gypt/gypt-$reponame
+  rm .git/.gypt/gypt-$reponame.tar.gz
+
+  echo 'Returning to master...'
+  git checkout master
+
+  echo "Adding .git/.gypt/gypt-$reponame as a remote..."
+  git remote add gypt-local .git/.gypt/gypt-$reponame
+  git fetch gypt-local
+
+  echo "Rebasing off of .git/.gypt/gypt-$reponame..."
+  git rebase gypt-local/master
+
+  echo 'Cleaning up...'
+  git branch -D gypt
+  git remote remove gypt-origin
+  git remote remove gypt-local
+  rm -rf .git/.gypt/gypt-$reponame
+fi
+
