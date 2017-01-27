@@ -1,0 +1,160 @@
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Conway</title>
+    <style>
+      canvas {
+        border: 1px solid black;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas></canvas>
+    <button id="start">Start</button>
+    <button id="stop">Stop</button>
+    <button id="clear">Clear</button>
+    <script>
+      STEP_MILLIS = 100;
+      BLOCK_LEN = 8;
+      WIDTH = 168;
+      HEIGHT = 75;
+      WRAP = false;
+
+      c = document.getElementsByTagName('canvas')[0];
+      c.width = BLOCK_LEN * WIDTH;
+      c.height = BLOCK_LEN * HEIGHT;
+      ctx = c.getContext('2d');
+
+      live = {};
+      nextLive = {};
+      seen = {};
+      running = false;
+
+      c.addEventListener('click', function(e) {
+        x = e.layerX - c.offsetLeft;
+        y = e.layerY - c.offsetTop;
+        i = Math.floor(x / BLOCK_LEN);
+        j = Math.floor(y / BLOCK_LEN);
+        if (live[i + ',' + j]) {
+          delete live[i + ',' + j];
+        } else {
+          live[i + ',' + j] = true;
+        }
+      });
+
+      document.getElementById('start').addEventListener('click', function() {
+        document.getElementById('start').disabled = true;
+        document.getElementById('stop').disabled = false;
+        document.getElementById('clear').disabled = true;
+        running = true;
+      });
+
+      document.getElementById('stop').addEventListener('click', function() {
+        document.getElementById('start').disabled = false;
+        document.getElementById('stop').disabled = true;
+        document.getElementById('clear').disabled = false;
+        running = false;
+      });
+
+      document.getElementById('clear').addEventListener('click', function() {
+        live = {};
+      });
+
+      getNeighbors = function(k) {
+        i1 = parseInt(k.split(',')[0]);
+        j1 = parseInt(k.split(',')[1]);
+        i0 = i1 - 1;
+        j0 = j1 - 1;
+        i2 = i1 + 1;
+        j2 = j1 + 1;
+        if (WRAP) {
+          if (i0 == -1) {
+            i0 = WIDTH - 1;
+          }
+          if (j0 == -1) {
+            j0 = HEIGHT - 1;
+          }
+          if (i2 == WIDTH) {
+            i2 = 0;
+          }
+          if (j2 == HEIGHT) {
+            j2 = 0;
+          }
+        }
+        return [
+          i0 + ',' + j0,
+          i0 + ',' + j1,
+          i0 + ',' + j2,
+          i1 + ',' + j0,
+          i1 + ',' + j2,
+          i2 + ',' + j0,
+          i2 + ',' + j1,
+          i2 + ',' + j2
+        ];
+      };
+
+      countLiveNeighbors = function(k) {
+        var neighbors = getNeighbors(k);
+        count = 0;
+        for (var i = 0; i < neighbors.length; i++) {
+          if (live[neighbors[i]]) {
+            count++;
+          }
+        }
+        return count;
+      };
+
+      updateCell = function(k) {
+        if (seen[k]) {
+          return;
+        }
+        numLiveNeighbors = countLiveNeighbors(k);
+        if (live[k] && (numLiveNeighbors == 2 || numLiveNeighbors == 3)) {
+          nextLive[k] = true;
+        } else if (!live[k] && numLiveNeighbors == 3) {
+          nextLive[k] = true;
+        }
+        seen[k] = true;
+      };
+
+      lastTimeStep = 0;
+      stepGame = function(timestamp) {
+        timeStep = Math.floor(timestamp / STEP_MILLIS);
+        if (running && timeStep != lastTimeStep) {
+          seen = {}
+          nextLive = {}
+          for (var k in live) {
+            var neighbors = getNeighbors(k);
+            updateCell(k);
+            for (var i = 0; i < neighbors.length; i++) {
+              updateCell(neighbors[i]);
+            }
+          }
+          live = nextLive;
+          lastTimeStep = timeStep;
+        }
+
+        ctx.clearRect(0, 0, c.width, c.height);
+        for (var i = 1; i < WIDTH; i++) {
+          ctx.beginPath();
+          ctx.moveTo(i * BLOCK_LEN, 0);
+          ctx.lineTo(i * BLOCK_LEN, c.height);
+          ctx.stroke();
+        }
+        for (var i = 1; i < HEIGHT; i++) {
+          ctx.beginPath();
+          ctx.moveTo(0, i * BLOCK_LEN);
+          ctx.lineTo(c.width, i * BLOCK_LEN);
+          ctx.stroke();
+        }
+        for (var k in live) {
+          i = k.split(',')[0]
+          j = k.split(',')[1]
+          ctx.fillRect(i * BLOCK_LEN, j * BLOCK_LEN, BLOCK_LEN, BLOCK_LEN);
+        }
+        requestAnimationFrame(stepGame);
+      }
+      requestAnimationFrame(stepGame);
+    </script>
+  </body>
+</html>
